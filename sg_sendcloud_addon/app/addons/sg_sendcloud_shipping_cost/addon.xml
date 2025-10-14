@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<addon scheme="3.0">
+    <id>sg_sendcloud_shipping_cost</id>
+    <status>active</status>
+    <version>1.0</version>
+    <priority>100</priority>
+    <position>1000</position>
+    <default_language>en</default_language>
+    <auto_install>MULTIVENDOR,ULTIMATE</auto_install>
+    
+    <name>SendCloud Shipping Cost</name>
+    <description>Integration with SendCloud shipping service for calculating shipping costs</description>
+    
+    <author>Priyanshu Nandan</author>
+    <email>pnandan905@gmail.com</email>
+    
+    <compatibility>
+        <core_edition>MULTIVENDOR</core_edition>
+        <core_edition>ULTIMATE</core_edition>
+    </compatibility>
+    
+    <settings edition_type="ROOT,ULT:VENDOR">
+        <sections>
+            <section id="general">
+                <items>
+                    <item id="public_api_key">
+                        <type>input</type>
+                        <default_value></default_value>
+                    </item>
+                    <item id="secret_api_key">
+                        <type>input</type>
+                        <default_value></default_value>
+                    </item>
+                    <item id="brand_id">
+                        <type>input</type>
+                        <default_value></default_value>
+                    </item>
+                </items>
+            </section>
+        </sections>
+    </settings>
+    
+    <functions>
+        <item for="install">fn_sg_sendcloud_shipping_cost_install</item>
+        <item for="uninstall">fn_sg_sendcloud_shipping_cost_uninstall</item>
+    </functions>
+</addon>

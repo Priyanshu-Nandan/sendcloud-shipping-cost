@@ -1,0 +1,31 @@
+<fieldset>
+
+{include file="common/subheader.tpl" title=__("general_info")}
+<div class="control-group">
+    <label class="control-label" for="surcharge_amount_{$shipping.shipping_id}">{__("sg_sendcloud_shipping_cost.surcharge_amount")}:</label>
+    <div class="controls">
+        <input type="text" name="shipping_data[service_params][surcharge_amount]" id="surcharge_amount_{$shipping.shipping_id}" value="{$shipping.service_params.surcharge_amount|default:0}" size="10" class="input-text" />
+        <span class="input-append">
+            <span class="add-on">{$currencies.$primary_currency.symbol nofilter}</span>
+        </span>
+        <p class="muted">{__("sg_sendcloud_shipping_cost.surcharge_amount_description")}</p>
+    </div>
+</div>
+
+<div class="control-group">
+    <label class="control-label" for="default_weight_{$shipping.shipping_id}">{__("sg_sendcloud_shipping_cost.default_weight")}:</label>
+    <div class="controls">
+        <input type="text" name="shipping_data[service_params][default_weight]" id="default_weight_{$shipping.shipping_id}" value="{$shipping.service_params.default_weight|default:1}" size="10" class="input-text" />
+        <span class="input-append">
+            <span class="add-on">Kg</span>
+        </span>
+        <p class="muted">{__("sg_sendcloud_shipping_cost.default_weight_description")}</p>
+    </div>
+</div>
+
+<div class="control-group">
+    <div class="controls">
+        <p class="muted">{__("sg_sendcloud_shipping_cost.rates_note")}</p>
+    </div>
+</div>
+</fieldset>
