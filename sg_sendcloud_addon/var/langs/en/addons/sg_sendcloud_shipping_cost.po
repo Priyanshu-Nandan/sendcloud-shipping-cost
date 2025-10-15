@@ -116,3 +116,19 @@ msgstr "SendCloud API connection verified successfully."
 msgctxt "Languages::sg_sendcloud_shipping_cost.error_no_dhl_method"
 msgid "No DHL shipping method available for this destination"
 msgstr "No DHL shipping method available for this destination"
+
+msgctxt "Languages::sg_sendcloud_shipping_cost.shipping_method"
+msgid "Sendcloud Shipping Method"
+msgstr "Sendcloud Shipping Method"
+
+msgctxt "Languages::sg_sendcloud_shipping_cost.shipping_method_description"
+msgid "Sendcloud Shipping Method"
+msgstr "Sendcloud Shipping Method"
+
+msgctxt "Languages::sendcloud_shipping_error"
+msgid "Error! please check the country, postal code, and weight"
+msgstr "Error! please check the country, postal code, and weight"
+
+msgctxt "Languages::sg_sendcloud_shipping_cost.select_method"
+msgid "Select a Sendcloud Shipping Method"
+msgstr "Select a Sendcloud Shipping Method"

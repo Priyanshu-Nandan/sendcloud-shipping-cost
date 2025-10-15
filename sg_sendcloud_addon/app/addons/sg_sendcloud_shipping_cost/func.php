@@ -40,6 +40,112 @@ function fn_sg_sendcloud_get_addon_settings($setting_name = null) {
 }
 
 /**
+ * Get all available SendCloud shipping methods for configuration
+ * This is used in admin panel when setting up the shipping method
+ * 
+ * @return array List of shipping methods
+ */
+/**
+ * Get all available SendCloud shipping methods for configuration
+ * 
+ * @param int $company_id Company ID (0 for default)
+ * @return array List of shipping methods [id => name]
+ */
+/**
+ * Get all available SendCloud shipping methods for configuration
+ * Filtered for Netherlands (NL) and Germany (DE) only
+ * 
+ * @param int $company_id Company ID (0 for default)
+ * @return array List of shipping methods [id => name]
+ */
+function fn_sg_sendcloud_get_all_shipping_methods($company_id = 0)
+{
+    $sendcloud_creds = fn_sg_sendcloud_get_sendcloud_keys($company_id);
+
+    if (empty($sendcloud_creds['sc_public_key']) || empty($sendcloud_creds['sc_secret_key'])) {
+        return array(
+            '' => __('sg_sendcloud_shipping_cost.no_credentials')
+        );
+    }
+
+    $username = $sendcloud_creds['sc_public_key'];
+    $password = $sendcloud_creds['sc_secret_key'];
+    $authCredentials = base64_encode($username . ':' . $password);
+
+    $curl = curl_init();
+
+    curl_setopt_array($curl, array(
+        CURLOPT_URL => 'https://panel.sendcloud.sc/api/v2/shipping_methods',
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_ENCODING => '',
+        CURLOPT_MAXREDIRS => 10,
+        CURLOPT_TIMEOUT => 30,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+        CURLOPT_CUSTOMREQUEST => 'GET',
+        CURLOPT_HTTPHEADER => array(
+            'Accept: application/json',
+            'Authorization: Basic ' . $authCredentials
+        ),
+    ));
+
+    $response = curl_exec($curl);
+    $http_code = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+    curl_close($curl);
+
+    if ($response === false || $http_code != 200) {
+        return array(
+            '' => __('sg_sendcloud_shipping_cost.api_error')
+        );
+    }
+
+    $response = json_decode($response, true);
+
+    $shipping_methods = array();
+    
+    // Target countries we want to filter for
+    $target_countries = array('NL', 'DE');
+    
+    if (isset($response['shipping_methods']) && !empty($response['shipping_methods'])) {
+        foreach ($response['shipping_methods'] as $method) {
+            $method_id = isset($method['id']) ? $method['id'] : '';
+            $carrier = isset($method['carrier']) ? strtoupper($method['carrier']) : '';
+            $name = isset($method['name']) ? $method['name'] : 'Unknown';
+            
+            // Check if this method supports our target countries
+            $supported_countries = array();
+            if (isset($method['countries']) && is_array($method['countries'])) {
+                foreach ($method['countries'] as $country) {
+                    if (isset($country['iso_2']) && in_array($country['iso_2'], $target_countries)) {
+                        $supported_countries[] = $country['iso_2'];
+                    }
+                }
+            }
+            
+            // Only add methods that support at least one of our target countries
+            if (!empty($supported_countries) && !empty($method_id)) {
+                // Format: "ID - CARRIER: Name (NL, DE)"
+                $countries_str = implode(', ', $supported_countries);
+                $display_name = $method_id . ' - ' . $carrier . ': ' . $name . ' (' . $countries_str . ')';
+                
+                $shipping_methods[$method_id] = $display_name;
+            }
+        }
+    }
+
+    if (empty($shipping_methods)) {
+        return array(
+            '' => __('sg_sendcloud_shipping_cost.no_methods_available_nl_de')
+        );
+    }
+
+    // Sort by method ID for better organization
+    ksort($shipping_methods);
+
+    return $shipping_methods;
+}
+
+/**
  * Validate addon settings before save
  *
  * @param array $settings Settings array to validate

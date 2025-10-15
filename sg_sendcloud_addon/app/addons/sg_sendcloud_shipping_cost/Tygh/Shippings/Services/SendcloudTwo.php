@@ -49,25 +49,29 @@ class SendcloudTwo implements IService
      */
     public function processResponse($response)
     {
-
         $return = array(
             'cost' => false,
             'error' => false,
             'delivery_time' => false,
         );
-        // fn_print_die($response);
-
+        
+        $response = json_decode($response, true);
+fn_print_die($this->_shipping_info, $response);
         if (!empty($response['error'])) {
             $return['error'] = $response['error'];
             return $return;
         }
 
-        if (isset($response['price'])) {
-            $return['cost'] = $response['price'];
+        if (isset($response[0]['price'])) {
+            $base_price = (float)$response[0]['price'];
+            $surcharge = isset($this->_shipping_info['service_params']['surcharge_amount']) 
+                ? (float)$this->_shipping_info['service_params']['surcharge_amount'] 
+                : 0;
+            
+            $return['cost'] = $base_price + $surcharge;
         } else {
             $return['error'] = __('sendcloud_shipping_error');
         }
-
         return $return;
     }
 
@@ -96,6 +100,7 @@ class SendcloudTwo implements IService
         return $this->_allow_multithreading;
     }
 
+    
     /**
      * Prepare request information
      *
@@ -105,14 +110,9 @@ class SendcloudTwo implements IService
     {
         $shipping_settings = $this->_shipping_info['service_params'];
         $package_info = $this->_shipping_info['package_info'];
-        // $group_key = $this->_shipping_info['keys']['group_key'];
         $shipping_id = $this->_shipping_info['shipping_id'];
 
-        
-        
-        // Get SendCloud credentials
         $sendcloud_creds = $this->getSendcloudCredentials();
-        // fn_print_die($sendcloud_creds, $shipping_id);
         
         if (empty($sendcloud_creds['public_api_key']) || empty($sendcloud_creds['secret_api_key'])) {
             return array(
@@ -127,10 +127,9 @@ class SendcloudTwo implements IService
         // Calculate shipment weight
         $weight_data = (float) $package_info['W'];
         $shipment_weight = $weight_data * Registry::get('settings.General.weight_symbol_grams');
-        $shipment_weight = $shipment_weight / 1000; // Convert to kg
+        $shipment_weight = $shipment_weight / 1000; 
 
-        // Get shipping method ID from service code
-        $shipping_method_id = $this->_shipping_info['service_code'];
+        $shipping_method_id = $shipping_settings['sendcloud_method_id'];
 
         // Get company data for origin country
         $company_id = $this->_shipping_info['package_info']['company_id'] ?? 0;
@@ -141,6 +140,7 @@ class SendcloudTwo implements IService
         $location = $this->prepareAddress($package_info['location']);
         $toCountry = $location['country'];
 
+        // fn_print_die($fromCountry, $toCountry);
         // Prepare weight for API (convert to grams)
         $weight = round($shipment_weight * 1000, 3);
         $weightUnit = 'gram';
@@ -168,7 +168,6 @@ class SendcloudTwo implements IService
             'shipping_method_id' => $shipping_method_id,
             'weight' => $weight
         );
-// fn_print_die($request_data);
         return $request_data;
     }
 
@@ -198,8 +197,13 @@ class SendcloudTwo implements IService
         }
 
         if (isset($response_data[0]['price'])) {
+            $base_price = (float)$response_data[0]['price'];
+            $surcharge = isset($this->_shipping_info['service_params']['surcharge_amount']) 
+                ? (float)$this->_shipping_info['service_params']['surcharge_amount'] 
+                : 0;
+                
             return array(
-                'price' => $response_data[0]['price']
+                'price' => $base_price + $surcharge
             );
         } elseif (isset($response_data['error']['message'])) {
             return array(
@@ -227,7 +231,6 @@ class SendcloudTwo implements IService
         // }
 
         $settings = fn_sg_sendcloud_get_addon_settings();
-        // fn_print_die($settings);
 
         return array(
             'public_api_key' => $settings['public_api_key'] ?? '',
