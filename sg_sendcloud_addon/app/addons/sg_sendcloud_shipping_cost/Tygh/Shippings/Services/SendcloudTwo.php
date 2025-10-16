@@ -44,7 +44,7 @@ class SendcloudTwo implements IService
     /**
      * Gets shipping cost and information about possible errors
      *
-     * @param  string $response Response from Shipping service server
+     * @param  mixed $response Response from Shipping service server
      * @return array  Shipping cost and errors
      */
     public function processResponse($response)
@@ -55,10 +55,23 @@ class SendcloudTwo implements IService
             'delivery_time' => false,
         );
         
-        $response = json_decode($response, true);
-fn_print_die($this->_shipping_info, $response);
+        if (is_array($response) && isset($response['data'])) {
+            $response = $response['data'];
+        }
+        
+        if (is_string($response)) {
+            $response = json_decode($response, true);
+        }
+        
+        if (!is_array($response)) {
+            $return['error'] = __('sendcloud_shipping_error');
+            return $return;
+        }
+
         if (!empty($response['error'])) {
-            $return['error'] = $response['error'];
+            $return['error'] = is_array($response['error']) 
+                ? (isset($response['error']['message']) ? $response['error']['message'] : json_encode($response['error']))
+                : $response['error'];
             return $return;
         }
 
@@ -72,6 +85,7 @@ fn_print_die($this->_shipping_info, $response);
         } else {
             $return['error'] = __('sendcloud_shipping_error');
         }
+        
         return $return;
     }
 
@@ -100,7 +114,6 @@ fn_print_die($this->_shipping_info, $response);
         return $this->_allow_multithreading;
     }
 
-    
     /**
      * Prepare request information
      *
@@ -110,7 +123,6 @@ fn_print_die($this->_shipping_info, $response);
     {
         $shipping_settings = $this->_shipping_info['service_params'];
         $package_info = $this->_shipping_info['package_info'];
-        $shipping_id = $this->_shipping_info['shipping_id'];
 
         $sendcloud_creds = $this->getSendcloudCredentials();
         
@@ -124,50 +136,57 @@ fn_print_die($this->_shipping_info, $response);
         $password = $sendcloud_creds['secret_api_key'];
         $authCredentials = base64_encode($username . ':' . $password);
 
-        // Calculate shipment weight
-        $weight_data = (float) $package_info['W'];
-        $shipment_weight = $weight_data * Registry::get('settings.General.weight_symbol_grams');
-        $shipment_weight = $shipment_weight / 1000; 
-
-        $shipping_method_id = $shipping_settings['sendcloud_method_id'];
-
-        // Get company data for origin country
-        $company_id = $this->_shipping_info['package_info']['company_id'] ?? 0;
+        // Get origin country from company data
+        $company_id = $package_info['company_id'] ?? 0;
         $company_data = !empty($company_id) ? fn_get_company_data($company_id) : array();
-        $fromCountry = !empty($company_data['country']) ? trim($company_data['country']) : 'NL';
-        
+        $from_country = !empty($company_data['country']) ? trim($company_data['country']) : 'NL';
+
         // Get destination country
         $location = $this->prepareAddress($package_info['location']);
-        $toCountry = $location['country'];
+        $to_country = $location['country'];
 
-        // fn_print_die($fromCountry, $toCountry);
-        // Prepare weight for API (convert to grams)
-        $weight = round($shipment_weight * 1000, 3);
-        $weightUnit = 'gram';
+        // Get shipping method ID
+        $shipping_method_id = $shipping_settings['sendcloud_method_id'];
 
-        // Build API URL
+        $weight_data = (float) $package_info['W'];
+        $store_weight_unit = Registry::get('settings.General.weight_symbol');  
+        
+
+        if ($weight_data == 0.001) {
+            $weight_data = $shipping_settings['default_weight'] ?? 1;
+            $store_weight_unit = 'kg';
+        }
+        // Convert to grams based on store's configured weight unit
+        if ($store_weight_unit === 'lbs') {
+            $weight_in_grams = $weight_data * 453.592;
+        } elseif ($store_weight_unit === 'kg') {
+            $weight_in_grams = $weight_data * 1000;
+        } elseif ($store_weight_unit === 'g') {
+            $weight_in_grams = $weight_data;
+        } else {
+            $weight_in_grams = $weight_data * 1000;
+        }
+        
+        $weight = round($weight_in_grams, 3);
+
         $url = "https://panel.sendcloud.sc/api/v2/shipping-price?" . http_build_query(array(
-            'from_country' => $fromCountry,
-            'to_country' => $toCountry,
+            'from_country' => $from_country,
+            'to_country' => $to_country,
             'shipping_method_id' => $shipping_method_id,
             'weight' => $weight,
-            'weight_unit' => $weightUnit
+            'weight_unit' => 'gram'
         ));
 
         $request_data = array(
             'method' => 'get',
             'url' => $url,
+            'data' => array(),
             'headers' => array(
                 'Authorization: Basic ' . $authCredentials,
                 'Content-Type: application/json',
-            ),
-            'credentials' => array(
-                'username' => $username,
-                'password' => $password
-            ),
-            'shipping_method_id' => $shipping_method_id,
-            'weight' => $weight
+            )
         );
+
         return $request_data;
     }
 
@@ -181,39 +200,38 @@ fn_print_die($this->_shipping_info, $response);
         $data = $this->getRequestData();
         
         if (isset($data['error'])) {
-            return $data;
+            return array(
+                'data' => array(
+                    'error' => $data['error']
+                )
+            );
         }
 
         $response = Http::get($data['url'], array(), array(
             'headers' => $data['headers']
         ));
 
+        if ($response === false) {
+            return array(
+                'data' => array(
+                    'error' => __('sendcloud_connection_error')
+                )
+            );
+        }
+
         $response_data = json_decode($response, true);
 
-        if ($response === false || json_last_error() !== JSON_ERROR_NONE) {
+        if (json_last_error() !== JSON_ERROR_NONE) {
             return array(
-                'error' => __('sendcloud_connection_error')
+                'data' => array(
+                    'error' => __('sendcloud_connection_error')
+                )
             );
         }
 
-        if (isset($response_data[0]['price'])) {
-            $base_price = (float)$response_data[0]['price'];
-            $surcharge = isset($this->_shipping_info['service_params']['surcharge_amount']) 
-                ? (float)$this->_shipping_info['service_params']['surcharge_amount'] 
-                : 0;
-                
-            return array(
-                'price' => $base_price + $surcharge
-            );
-        } elseif (isset($response_data['error']['message'])) {
-            return array(
-                'error' => $response_data['error']['message']
-            );
-        } else {
-            return array(
-                'error' => __('sendcloud_unexpected_response')
-            );
-        }
+        return array(
+            'data' => $response_data
+        );
     }
 
     /**
@@ -230,7 +248,7 @@ fn_print_die($this->_shipping_info, $response);
         //     $settings = fn_get_settings('sg_sendcloud_shipping_cost', 'general');
         // }
 
-        $settings = fn_sg_sendcloud_get_addon_settings();
+        $settings = fn_sg_sendcloud_shipping_cost_get_addon_settings();
 
         return array(
             'public_api_key' => $settings['public_api_key'] ?? '',
@@ -258,16 +276,16 @@ fn_print_die($this->_shipping_info, $response);
         return array_merge($default_fields, $address);
     }
 
-    /**
-     * Returns shipping service information
-     * 
-     * @return array information
-     */
-    public static function getInfo()
-    {
-        return array(
-            'name' => __('carrier_sendcloud'),
-            'tracking_url' => 'https://tracking.sendcloud.sc/parcels/%s'
-        );
-    }
+    // /**
+    //  * Returns shipping service information
+    //  * 
+    //  * @return array information
+    //  */
+    // public static function getInfo()
+    // {
+    //     return array(
+    //         'name' => __('carrier_sendcloud'),
+    //         'tracking_url' => 'https://tracking.sendcloud.sc/parcels/%s'
+    //     );
+    // }
 }

@@ -21,7 +21,7 @@ use Tygh\Languages\Languages;
  *
  * @return array|string|null Addon settings or specific setting value
  */
-function fn_sg_sendcloud_get_addon_settings($setting_name = null) {
+function fn_sg_sendcloud_shipping_cost_get_addon_settings($setting_name = null) {
     static $settings = null;
     
     if ($settings === null) {
@@ -41,35 +41,23 @@ function fn_sg_sendcloud_get_addon_settings($setting_name = null) {
 
 /**
  * Get all available SendCloud shipping methods for configuration
- * This is used in admin panel when setting up the shipping method
- * 
- * @return array List of shipping methods
- */
-/**
- * Get all available SendCloud shipping methods for configuration
- * 
- * @param int $company_id Company ID (0 for default)
- * @return array List of shipping methods [id => name]
- */
-/**
- * Get all available SendCloud shipping methods for configuration
  * Filtered for Netherlands (NL) and Germany (DE) only
  * 
  * @param int $company_id Company ID (0 for default)
  * @return array List of shipping methods [id => name]
  */
-function fn_sg_sendcloud_get_all_shipping_methods($company_id = 0)
+function fn_sg_sendcloud__shipping_cost_get_all_shipping_methods($company_id = 0)
 {
-    $sendcloud_creds = fn_sg_sendcloud_get_sendcloud_keys($company_id);
+    $sendcloud_creds = fn_sg_sendcloud_shipping_cost_get_addon_settings($company_id);
 
-    if (empty($sendcloud_creds['sc_public_key']) || empty($sendcloud_creds['sc_secret_key'])) {
+    if (empty($sendcloud_creds['public_api_key']) || empty($sendcloud_creds['secret_api_key'])) {
         return array(
             '' => __('sg_sendcloud_shipping_cost.no_credentials')
         );
     }
 
-    $username = $sendcloud_creds['sc_public_key'];
-    $password = $sendcloud_creds['sc_secret_key'];
+    $username = $sendcloud_creds['public_api_key'];
+    $password = $sendcloud_creds['secret_api_key'];
     $authCredentials = base64_encode($username . ':' . $password);
 
     $curl = curl_init();
@@ -213,8 +201,7 @@ function fn_sg_sendcloud_shipping_cost_uninstall() {
  * @return array|false Array of shipping rates or false on failure
  */
 function fn_sg_sendcloud_get_rates($shipping_settings, $order_info, $lang_code = CART_LANGUAGE) {
-    // This function will be called from SendcloudShipping2 service class
-    // Implementation will be in the service class
+    
     return false;
 }
 
@@ -253,9 +240,6 @@ function fn_sg_sendcloud_test_connection($public_key, $secret_key, $brand_id) {
             'message' => fn_sg_sendcloud_format_error('missing_config')
         );
     }
-    
-    // TODO: Implement actual API connection test
-    // This will connect to Sendcloud API and verify credentials
     
     return array(
         'success' => true,

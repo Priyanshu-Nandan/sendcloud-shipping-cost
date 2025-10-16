@@ -7,11 +7,7 @@
  * @version 1.0
  */
 
-if (!defined('BOOTSTRAP')) {
+use Tygh\Registry;
+if (!defined('BOOTSTRAP')) { 
     die('Access denied');
 }
-
-use Tygh\Registry;
-
-// Set addon as active in registry
-// Registry::set('addons.sg_sendcloud_shipping_cost', true);

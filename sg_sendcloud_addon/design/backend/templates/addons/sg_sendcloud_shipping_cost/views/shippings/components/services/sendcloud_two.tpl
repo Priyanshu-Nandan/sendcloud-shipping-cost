@@ -1,7 +1,7 @@
 <fieldset>
 
 {include file="common/subheader.tpl" title=__("general_info")}
-{assign var="sendcloud_shipping_methods" value=fn_sg_sendcloud_get_all_shipping_methods($company_id)}
+{assign var="sendcloud_shipping_methods" value=fn_sg_sendcloud__shipping_cost_get_all_shipping_methods($company_id)}
 
 <div class="control-group">
     <label class="control-label" for="sendcloud_method_id_{$shipping.shipping_id}">{__("sg_sendcloud_shipping_cost.shipping_method")} <span class="required">*</span>:</label>
